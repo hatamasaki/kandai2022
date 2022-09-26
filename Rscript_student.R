@@ -114,72 +114,6 @@ data %>%
 data <- data %>% 
   mutate(abe = q4_2_1)
 
-#2値で平均値比較
-data %>% 
-  group_by(gender) %>% # genderの値ごとに分けると宣言
-  summarize(mean = mean(abe, na.rm = TRUE),
-            sd = sd(abe, na.rm = TRUE),
-            n = n()) 
-
-#3値以上で平均値比較
-data %>% 
-  filter(!is.na(pid)) %>%
-  group_by(pid) %>% # genderの値ごとに分けると宣言
-  summarize(mean = mean(abe, na.rm = TRUE),
-            sd = sd(abe, na.rm = TRUE),
-            n = n())
-
-#3群以上で比較（方法は色々ある）
-TukeyHSD(aov(data$abe~ data$pid))
-pairwise.t.test(data$abe, data$pid, p.adj = "bonf")
-
-#絵を書いてみる（シンプル）
-plotmeans(data$abe ~ data$pid)
-
-#絵を書いてみる（シンプル）
-data %>% 
-  filter(!is.na(pid)) %>%
-  ggplot() +
-  geom_boxplot(aes(x=pid, y=abe))
-
-#絵を書いてみる（カラフル）
-data %>% 
-  filter(!is.na(pid)) %>%
-  ggplot(aes(x=pid, y=abe)) +
-  geom_jitter(aes(color = pid),
-              width = 0.2, height = 0,
-              show.legend = FALSE) +
-  geom_boxplot(aes(fill = pid),
-               alpha = 0.5,
-               show.legend = FALSE) + 
-  labs(x = "支持政党", y = "安倍感情温度") +
-  theme(axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.x = element_text(size = 15),
-        axis.title.y = element_text(size = 15)
-  ) 
-
-########################################################
-#宿題
-
-#感情温度変数
-data <- data %>% 
-  mutate(自民 = q4_1_1,
-           立民 = q4_1_2,
-           共産 = q4_1_3,
-           社民 = q4_1_4,
-           国民 = q4_1_5)
-
-#無党派層に嫌われてる政党
-data %>% 
-  filter(!is.na(pid)) %>% 
-  group_by(pid) %>% 
-  summarize(自民 = mean(自民, na.rm = TRUE),
-              立民 = mean(立民, na.rm = TRUE),
-              共産 = mean(共産, na.rm = TRUE),
-              社民 = mean(社民, na.rm = TRUE),
-              国民 = mean(国民, na.rm = TRUE))
-
 
 #性別の変数を作成
 data <- data %>% 
@@ -193,37 +127,98 @@ data <- data %>%
 data %>% 
   with(round(prop.table(table(gender))*100,2))
 
-#男女で最も好感度に差がある政党
-#これもっと効率的にできる方法があれば…
-自民g <- TukeyHSD(aov(data$自民~ data$gender))
-立民g <- TukeyHSD(aov(data$立民~ data$gender))
-共産g <- TukeyHSD(aov(data$共産~ data$gender))
-社民g <- TukeyHSD(aov(data$社民~ data$gender))
-国民g <- TukeyHSD(aov(data$国民~ data$gender))
+#2値で平均値比較
+data %>% 
+  group_by(gender) %>% # genderの値ごとに分けると宣言
+  summarize(mean = mean(abe, na.rm = TRUE),
+            sd = sd(abe, na.rm = TRUE),
+            n = n()) 
 
-自民g
-立民g
-共産g
-社民g
-国民g
+#3値以上で平均値比較
+data %>% 
+  filter(!is.na(pid)) %>% #pidのNAは不要と宣言
+  group_by(pid) %>% # genderの値ごとに分けると宣言
+  summarize(mean = mean(abe, na.rm = TRUE),
+            sd = sd(abe, na.rm = TRUE),
+            n = n())
 
-#20 代で最も好感度に差がある政党
+#3群以上で比較
+data %>% 
+  filter(!is.na(pid)) %>% #pidのNAは不要と宣言
+  group_by(pid) %>% # genderの値ごとに分けると宣言
+  summarize(mean = mean(abe, na.rm = TRUE),
+            sd = sd(abe, na.rm = TRUE),
+            n = n()) 
+
+#3方法は色々ある
+TukeyHSD(aov(data$abe~ data$pid))
+pairwise.t.test(data$abe, data$pid, p.adj = "bonf")
+
+#絵を書いてみる（シンプル）
+plotmeans(data$abe ~ data$pid)
+
+
+############################################################################
+##ggplotで書いてみる
+
+#お絵かき用のデータフレームを造る
+abe.pid <- data %>% 
+  filter(!is.na(pid)) %>% #pidのNAは不要と宣言
+  group_by(pid) %>% # genderの値ごとに分けると宣言
+  summarize(mean = mean(abe, na.rm = T),
+            se = sd(abe,na.rm = T)/sqrt(length(abe))) %>% 
+  mutate(pid = factor(pid, levels = c("与党","野党","無党派")))
+
+#絵を書いてみる（シンプル）
+
+mihon <- abe.pid %>% 
+  ggplot() +
+  geom_pointrange(aes(x = mean, xmin = mean - se , xmax = mean + se,
+                      y = pid)) +
+  geom_text(aes(x = mean, y = pid, label=sprintf("%.2f", mean),
+                vjust = 4),size = 5, position = "dodge") +
+  theme_bw(base_size = 15, base_family = "HiraginoSans-W3") + 
+  labs(x = "安倍感情温度の平均値", y = "支持政党") + 
+  coord_flip() + 
+  scale_x_continuous(breaks=seq(30,80,length=6),limits=c(30,80))
+
+mihon
+
+#保存する場合
+ggsave("見本.pdf", mihon, dpi = 300, width = 8, height = 5, device = cairo_pdf)
+
+
+
+#絵を書いてみる（カラフル）
+data %>% 
+  filter(!is.na(pid)) %>%
+  ggplot(aes(x=pid, y=abe)) +
+  geom_jitter(aes(color = pid),
+              width = 0.2, height = 0,
+              show.legend = FALSE) +
+  geom_boxplot(aes(fill = pid),
+               alpha = 0.5,
+               show.legend = FALSE) + 
+  labs(x = "支持政党", y = "安倍感情温度") +
+  theme_bw(base_size = 20, base_family = "HiraginoSans-W3")
+
+
+########################################################
+#宿題
+
+#感情温度変数
 data <- data %>% 
-  mutate(age20 = 
-           case_when(age>=20 & age<30 ~ "20代",
-                     TRUE ~ "その他"))
+  mutate(自民 = q4_1_1,
+         立民 = q4_1_2,
+         共産 = q4_1_3,
+         社民 = q4_1_4,
+         国民 = q4_1_5)
 
-自民g2 <- TukeyHSD(aov(data$自民~ data$age20))
-立民g2 <- TukeyHSD(aov(data$立民~ data$age20))
-共産g2 <- TukeyHSD(aov(data$共産~ data$age20))
-社民g2 <- TukeyHSD(aov(data$社民~ data$age20))
-国民g2 <- TukeyHSD(aov(data$国民~ data$age20))
+#無党派層に嫌われてる政党
 
-自民g2
-立民g2
-共産g2
-社民g2
-国民g2
+#世代で差がある政党
+
+#男女で最も好感度に差がある政党
 
 ########################################################
 
@@ -310,9 +305,9 @@ data %>%
                names_to  = "国別",
                values_to = "th") %>%
   mutate(国別 = recode(国別,
-                       "日本_k" = "日本",
-                       "韓国_k" = "韓国",
-                       "US_k" = "US")) %>% 
+                     "日本_k" = "日本",
+                     "韓国_k" = "韓国",
+                     "US_k" = "US")) %>% 
   ggplot() +
   geom_boxplot(aes(x = gen3, y = th, fill = 国別)) +
   labs(x = "世代", y = "感情温度", fill = "国ごと")
